@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RecordType {
+  PIUTANG
+  UTANG
+}
+
+enum RateMode {
+  PER_BULAN
+  TOTAL
+}
+
+model User {
+  id              String           @id @default(cuid())
+  name            String
+  email           String           @unique
+  passwordHash    String
+  closingDay      Int              @default(28)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  records         Record[]
+  monthlyClosings MonthlyClosing[]
+
+  @@map("users")
+}
+
+model Record {
+  id              String      @id @default(cuid())
+  userId          String
+  type            RecordType
+  partyName       String
+  transactionDate DateTime
+  principal       Float
+  interestRate    Float
+  rateMode        RateMode
+  tenorMonths     Int         @default(1)
+  totalInterest   Float
+  totalAmount     Float
+  paidAmount      Float       @default(0)
+  note            String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments        Payment[]
+
+  @@map("records")
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  recordId    String
+  amount      Float
+  paymentDate DateTime
+  createdAt   DateTime @default(now())
+  record      Record   @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model MonthlyClosing {
+  id                 String   @id @default(cuid())
+  userId             String
+  period             String   // Format YYYY-MM
+  closingDaySetting  Int
+  closedAt           DateTime @default(now())
+  newReceivables     Float
+  incomingPayments   Float
+  periodInterest     Float
+  endingReceivables  Float
+  endingPayables     Float
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@map("monthly_closings")
+}
